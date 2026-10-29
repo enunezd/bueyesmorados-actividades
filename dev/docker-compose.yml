@@ -1,0 +1,20 @@
+# Entorno local: docker compose -f dev/docker-compose.yml up -d --build
+# Web: http://localhost:8088   Admin: /admin/  (usuario: admin / clave: admin123)
+services:
+  web:
+    build: .
+    ports: ["8088:80"]
+    volumes:
+      - ..:/var/www/html
+      - ./config.dev.php:/var/www/html/includes/config.php:ro
+    depends_on: [db]
+  db:
+    image: mariadb:10.6
+    environment:
+      MARIADB_DATABASE: bueyes
+      MARIADB_USER: bueyes
+      MARIADB_PASSWORD: bueyes
+      MARIADB_ROOT_PASSWORD: root
+    volumes:
+      - ../sql/schema.sql:/docker-entrypoint-initdb.d/1-schema.sql:ro
+      - ./seed.sql:/docker-entrypoint-initdb.d/2-seed.sql:ro

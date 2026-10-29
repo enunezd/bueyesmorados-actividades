@@ -1,0 +1,7 @@
+# Credenciales y datos reales: nunca al repositorio
+includes/config.php
+_backup/
+*.tar.gz
+*.zip
+# Volcados de base de datos (con datos reales de familias)
+/*.sql
