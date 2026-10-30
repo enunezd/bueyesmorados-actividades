@@ -1,4 +1,55 @@
-<?php require __DIR__.'/includes/app.php';
-$a=db()->query("SELECT a.*,COALESCE((SELECT SUM(capacidad) FROM cupos c WHERE c.actividad_id=a.id AND c.habilitado=1),0) capacidad,COALESCE((SELECT COUNT(*) FROM inscripciones i WHERE i.actividad_id=a.id AND i.estado='confirmada'),0) inscritos FROM actividades a WHERE a.estado='publicada' ORDER BY orden,fecha_actividad,nombre")->fetchAll();
-$visible=[];foreach($a as $x){[$code,$label]=activity_state($x);if($code==='cerrada'&&!$x['mostrar_cerrada'])continue;$x['s']=[$code,$label];$visible[]=$x;}
-?><!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Bueyes Morados</title><link rel="stylesheet" href="<?=e(url('assets/css/publico.css'))?>"></head><body><header class="hero"><div><h1>Bueyes Morados</h1><p>Registro de familias para actividades, comisiones y turnos.</p></div></header><main class="wrap"><section class="intro"><h2>Actividades disponibles</h2><p class="meta">Selecciona una actividad habilitada para revisar turnos y disponibilidad.</p></section><?php if(!$visible):?><section class="empty card"><h2>No hay actividades publicadas</h2><p class="meta">Vuelve a consultar próximamente.</p></section><?php else:?><section class="grid"><?php foreach($visible as $x): [$code,$label]=$x['s'];?><article class="card"><span class="badge <?=e($code)?>"><?=e($label)?></span><h2><?=e($x['nombre'])?></h2><p class="meta"><b>Fecha:</b> <?=e(fmt_date($x['fecha_actividad']))?><br><?=nl2br(e($x['descripcion']))?><br><b>Registrados:</b> <?=(int)$x['inscritos']?> / <?=(int)$x['capacidad']?></p><?php if($code==='abierta'&&(int)$x['capacidad']>(int)$x['inscritos']):?><a class="btn" href="<?=e(url('actividad.php?id='.(int)$x['id']))?>">Ver turnos y registrarse</a><?php else:?><span class="btn off">Registro no disponible</span><?php endif;?></article><?php endforeach;?></section><?php endif;?></main><footer class="footer">Bueyes Morados · <a style="color:white" href="<?=e(url('admin/'))?>">Administración</a></footer></body></html>
+<?php
+require __DIR__.'/includes/app.php';
+require __DIR__.'/includes/publico.php';
+asig_ejecutar_pendientes();
+$pdo=db();
+
+$filas=act_lista($pdo,"a.estado='publicada'",'a.orden,a.fecha_actividad,a.nombre');
+
+$visibles=[];
+foreach($filas as $a){
+    [$code,$label]=activity_state($a);
+    if($code==='cerrada'&&!$a['mostrar_cerrada'])continue;
+    $a['code']=$code;$a['label']=$label;
+    $visibles[]=$a;
+}
+
+pub_inicio('Actividades','Actividades de la promo','Elige una actividad, escoge tu comisión y turno, y confirma la inscripción de tu familia en menos de un minuto.');
+?>
+<?php if(!$visibles):?>
+  <section class="card vacio-card"><h2>Por ahora no hay actividades publicadas</h2><p>Vuelve a consultar pronto.</p></section>
+<?php else:?>
+  <section class="grid">
+  <?php foreach($visibles as $a):
+      $lugares=(int)$a['lugares'];$libres=(int)$a['libres'];$ocupados=$lugares-$libres;
+      $abierta=$a['code']==='abierta';
+  ?>
+    <article class="card act">
+      <span class="badge <?=e($a['code'])?>"><?=e($a['label'])?></span>
+      <h2><?=e($a['nombre'])?></h2>
+      <p class="meta"><b>📅 <?=e(fecha_larga($a['fecha_actividad']))?></b></p>
+      <?php if(trim((string)$a['descripcion'])!==''):?><p><?=nl2br(e($a['descripcion']))?></p><?php endif;?>
+      <p class="meta"><?=e(act_ventana($a))?></p>
+      <?php if($lugares>0):?>
+        <div class="resumen-lugares"><span class="barra" aria-hidden="true"><i style="width:<?=$lugares?round($ocupados*100/$lugares):0?>%"></i></span>
+        <span class="cuenta"><?=$libres>0?plural($libres,'lugar libre','lugares libres').' de '.$lugares:'Todos los lugares están ocupados'?></span></div>
+      <?php endif;?>
+      <?php if($abierta&&(int)$a['asignacion_auto']&&$a['modo_control']==='automatico'&&$a['fecha_cierre']):?>
+        <p class="meta">🎲 Las familias que no se inscriban serán asignadas al azar a los lugares libres cuando cierre la inscripción.</p>
+      <?php endif;?>
+      <div class="acciones">
+        <?php if($abierta&&$libres>0):?><a class="btn acc" href="<?=e(url('actividad.php?id='.$a['id']))?>">Ver turnos y registrarme</a>
+        <?php elseif($abierta):?><a class="btn ghost" href="<?=e(url('actividad.php?id='.$a['id']))?>">Ver turnos</a>
+        <?php else:?><a class="btn ghost" href="<?=e(url('actividad.php?id='.$a['id']))?>">Ver detalle</a><?php endif;?>
+      </div>
+    </article>
+  <?php endforeach;?>
+  </section>
+  <section class="card pad" style="margin-top:18px">
+    <div class="acciones" style="justify-content:space-between">
+      <div><b>¿Ya te inscribiste o te asignaron un turno?</b><br><span class="meta">Consulta en qué comisión y horario quedó tu familia.</span></div>
+      <a class="btn ghost" href="<?=e(url('mi-turno.php'))?>">Consultar mi turno</a>
+    </div>
+  </section>
+<?php endif;?>
+<?php pub_fin();

@@ -1,1 +1,37 @@
-<?php require __DIR__.'/includes/app.php';$q=db()->prepare("SELECT i.*,a.nombre actividad,co.nombre comision,t.hora_inicio,t.hora_fin FROM inscripciones i JOIN actividades a ON a.id=i.actividad_id JOIN comisiones co ON co.id=i.comision_id JOIN turnos t ON t.id=i.turno_id WHERE i.codigo_confirmacion=?");$q->execute([$_GET['codigo']??'']);$i=$q->fetch();if(!$i){http_response_code(404);exit('Confirmación no encontrada');}?><!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Confirmación</title><link rel="stylesheet" href="<?=e(url('assets/css/publico.css'))?>"></head><body><header class="hero"><div><h1>Inscripción confirmada</h1><p>Guarda este código: <?=e($i['codigo_confirmacion'])?></p></div></header><main class="wrap"><section class="formcard"><div class="alert success">La inscripción fue registrada correctamente.</div><p><b>Familia:</b> <?=e($i['familia'])?><br><b>Actividad:</b> <?=e($i['actividad'])?><br><b>Comisión:</b> <?=e($i['comision'])?><br><b>Turno:</b> <?=e(substr($i['hora_inicio'],0,5).'-'.substr($i['hora_fin'],0,5))?></p><a class="btn" href="<?=e(url())?>">Volver al inicio</a></section></main></body></html>
+<?php
+require __DIR__.'/includes/app.php';
+require __DIR__.'/includes/publico.php';
+$pdo=db();
+
+$q=$pdo->prepare("SELECT i.*,a.nombre actividad,a.fecha_actividad,co.nombre comision,t.hora_inicio,t.hora_fin
+  FROM inscripciones i JOIN actividades a ON a.id=i.actividad_id JOIN comisiones co ON co.id=i.comision_id JOIN turnos t ON t.id=i.turno_id
+  WHERE i.codigo_confirmacion=?");
+$q->execute([strtoupper(trim((string)($_GET['codigo']??'')))]);$i=$q->fetch();
+if(!$i)pub_error('Confirmación no encontrada','No encontramos una inscripción con ese código.',404,[url('mi-turno.php'),'Consultar mi turno']);
+
+$cancelada=$i['estado']==='cancelada';
+pub_inicio($cancelada?'Inscripción cancelada':'Inscripción confirmada',$cancelada?'Inscripción cancelada':'¡Listo, tu familia está inscrita!','',['privada'=>true]);
+?>
+<section class="card formcard centrado">
+  <?php if($cancelada):?>
+    <div class="aviso bad"><span>✖</span><span>Esta inscripción fue cancelada.</span></div>
+  <?php else:?>
+    <div class="exito"><div class="tilde" aria-hidden="true">✓</div><p class="lead" style="margin:0">Guarda este código para consultar o cancelar tu inscripción:</p><div class="codigo"><?=e($i['codigo_confirmacion'])?></div></div>
+  <?php endif;?>
+  <dl class="datos">
+    <dt>Familia</dt><dd><?=e($i['familia'])?></dd>
+    <dt>Actividad</dt><dd><?=e($i['actividad'])?></dd>
+    <dt>Fecha</dt><dd><?=e(fecha_larga($i['fecha_actividad']))?></dd>
+    <dt>Comisión</dt><dd><?=e($i['comision'])?></dd>
+    <dt>Horario</dt><dd><?=e(hhmm($i['hora_inicio']).' – '.hhmm($i['hora_fin']))?></dd>
+  </dl>
+  <?php if(!$cancelada):?>
+    <p class="meta">📸 Te recomendamos tomar una captura de esta pantalla.</p>
+    <div class="acciones" style="justify-content:center">
+      <?php if($i['fecha_actividad']):?><a class="btn" href="<?=e(url('calendario.php?codigo='.$i['codigo_confirmacion']))?>">📅 Agregar al calendario</a><?php endif;?>
+      <a class="btn ghost" href="<?=e(url('mi-turno.php?codigo='.$i['codigo_confirmacion']))?>">Cambiar o cancelar</a>
+    </div>
+  <?php endif;?>
+  <p style="margin:20px 0 0"><a href="<?=e(url())?>">← Volver a las actividades</a></p>
+</section>
+<?php pub_fin();

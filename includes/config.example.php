@@ -3,8 +3,8 @@ declare(strict_types=1);
 // Copia este archivo como config.php y completa los datos reales.
 return [
     'app' => [
-        'name' => 'Actividades Bueyes Morados',
-        'url' => 'https://tigresazules63.com/bueyes-morados',
+        'name' => 'Tigres Azules',
+        'url' => 'https://tigresazules63.com/actividades',
         'timezone' => 'America/Lima',
         'environment' => 'production',
     ],
@@ -17,7 +17,7 @@ return [
         'charset' => 'utf8mb4',
     ],
     'security' => [
-        'session_name' => 'BUEYES_ADMIN',
+        'session_name' => 'TA_ADMIN',
         'session_timeout' => 3600,
     ],
 ];
